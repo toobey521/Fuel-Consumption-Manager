@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>油耗统计 · 车管家</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&display=swap');
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Inter','Segoe UI',sans-serif;background:#f0f2f5;min-height:100vh;padding:20px;color:#1a1a2e}
+.app{max-width:960px;margin:0 auto}
+.header{text-align:center;margin-bottom:24px}
+.header h1{font-size:28px;font-weight:800;background:linear-gradient(135deg,#667eea,#764ba2);-webkit-background-clip:text;-webkit-text-fill-color:transparent;letter-spacing:-.5px}
+.header .sub{font-size:13px;color:#888;margin-top:4px;font-weight:400}
+
+/* 统计卡片 */
+.stats-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-bottom:20px}
+.stat-card{background:#fff;border-radius:16px;padding:16px 18px;box-shadow:0 2px 12px rgba(0,0,0,.04);border:1px solid #f0f0f0;transition:transform .2s}
+.stat-card:hover{transform:translateY(-2px)}
+.stat-card .label{font-size:11px;color:#999;font-weight:600;text-transform:uppercase;letter-spacing:.5px}
+.stat-card .value{font-size:24px;font-weight:700;color:#1a1a2e;margin-top:4px}
+.stat-card .value span{font-size:13px;font-weight:400;color:#888;margin-left:4px}
+.stat-card .trend{font-size:11px;margin-top:4px;color:#666}
+.stat-card.green .value{color:#10b981}
+.stat-card.blue .value{color:#667eea}
+.stat-card.purple .value{color:#764ba2}
+.stat-card.orange .value{color:#f59e0b}
+
+/* 图表区 */
+.charts-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:20px}
+.chart-box{background:#fff;border-radius:16px;padding:18px;box-shadow:0 2px 12px rgba(0,0,0,.04);border:1px solid #f0f0f0}
+.chart-box h3{font-size:13px;color:#666;font-weight:600;margin-bottom:10px;letter-spacing:.3px}
+.chart-box canvas{width:100%!important;height:180px!important}
+
+/* 录入区 */
+.form-card{background:#fff;border-radius:16px;padding:18px 20px;box-shadow:0 2px 12px rgba(0,0,0,.04);border:1px solid #f0f0f0;margin-bottom:20px}
+.form-card h3{font-size:13px;color:#666;font-weight:600;margin-bottom:12px;letter-spacing:.3px}
+.form-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-bottom:10px}
+.form-group{}
+.form-group label{display:block;font-size:11px;color:#999;font-weight:600;margin-bottom:3px;text-transform:uppercase;letter-spacing:.3px}
+.form-group input{width:100%;padding:9px 12px;border:2px solid #eef0f4;border-radius:10px;font-size:14px;font-family:inherit;transition:border-color .2s;color:#1a1a2e;background:#fafbfc}
+.form-group input:focus{outline:none;border-color:#667eea;background:#fff}
+.form-group input::placeholder{color:#bbb}
+.btn-row{display:flex;gap:8px;margin-top:4px}
+.btn{padding:9px 20px;border-radius:10px;border:none;font-size:13px;font-weight:600;cursor:pointer;transition:all .2s;font-family:inherit}
+.btn-primary{background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;box-shadow:0 4px 15px rgba(102,126,234,.25)}
+.btn-primary:hover{transform:translateY(-1px);box-shadow:0 6px 20px rgba(102,126,234,.35)}
+.btn-danger{background:#fee2e2;color:#ef4444}
+.btn-danger:hover{background:#fecaca}
+.btn-outline{background:transparent;border:2px solid #eef0f4;color:#666}
+.btn-outline:hover{border-color:#667eea;color:#667eea}
+
+/* 筛选 */
+.filter-bar{display:flex;gap:6px;margin-bottom:14px;flex-wrap:wrap}
+.filter-btn{padding:6px 14px;border-radius:20px;border:1px solid #eef0f4;background:#fff;font-size:12px;font-weight:600;cursor:pointer;transition:all .2s;color:#888;font-family:inherit}
+.filter-btn:hover{border-color:#667eea;color:#667eea}
+.filter-btn.active{background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;border-color:transparent}
+
+/* 历史记录 */
+.history-card{background:#fff;border-radius:16px;padding:18px 20px;box-shadow:0 2px 12px rgba(0,0,0,.04);border:1px solid #f0f0f0}
+.history-card h3{font-size:13px;color:#666;font-weight:600;margin-bottom:10px;letter-spacing:.3px}
+.history-list{max-height:280px;overflow-y:auto}
+.history-list::-webkit-scrollbar{width:4px}
+.history-list::-webkit-scrollbar-thumb{background:#ddd;border-radius:4px}
+.h-item{display:grid;grid-template-columns:100px 1fr 1fr 1fr 50px;gap:8px;padding:10px 12px;border-radius:10px;align-items:center;font-size:13px;transition:background .2s}
+.h-item:nth-child(even){background:#fafbfc}
+.h-item:hover{background:#f0f2f8}
+.h-item .h-date{color:#888;font-weight:500}
+.h-item .h-val{font-weight:600;color:#1a1a2e;text-align:right}
+.h-item .h-del{cursor:pointer;color:#ddd;text-align:center;font-size:16px;transition:color .2s}
+.h-item .h-del:hover{color:#ef4444}
+.h-item .h-edit{cursor:pointer;color:#ddd;text-align:center;font-size:13px;transition:color .2s;font-weight:600}
+.h-item .h-edit:hover{color:#667eea}
+.h-item.editing{background:#f0f2ff!important;border:1px solid #667eea;border-radius:10px}
+.h-item .h-edit-input{width:80px;padding:4px 6px;border:1px solid #667eea;border-radius:6px;font-size:12px;font-family:inherit;text-align:right;background:#fff}
+.h-item .h-edit-input:focus{outline:none;box-shadow:0 0 0 2px rgba(102,126,234,.2)}
+.h-empty{text-align:center;padding:30px 0;color:#bbb;font-size:13px}
+
+@media(max-width:600px){
+  .stats-grid{grid-template-columns:repeat(2,1fr)}
+  .charts-row{grid-template-columns:1fr}
+  .form-row{grid-template-columns:1fr 1fr}
+  body{padding:12px}
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="header"><h1>⛽ 油 耗 管 家</h1><div class="sub">Fuel Tracker · 每公里花费一目了然</div></div>
+
+  <!-- 统计卡片 -->
+  <div class="stats-grid" id="statsGrid"></div>
+
+  <!-- 图表 -->
+  <div class="charts-row" style="margin-bottom:8px">
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+      <h3 style="font-size:13px;color:#666;font-weight:600;letter-spacing:.3px">📊 油耗趋势</h3>
+      <select id="trendPeriod" onchange="renderCharts()" style="padding:5px 10px;border-radius:8px;border:2px solid #eef0f4;font-size:12px;font-family:inherit;color:#666;background:#fafbfc;cursor:pointer">
+        <option value="week">📅 按周</option>
+        <option value="month" selected>📆 按月</option>
+        <option value="quarter">📊 按季度</option>
+        <option value="half">📈 按半年</option>
+        <option value="year">📋 按年</option>
+      </select>
+    </div>
+  </div>
+  <div class="charts-row">
+    <div class="chart-box"><h3>📊 月度油耗趋势</h3><canvas id="monthChart"></canvas></div>
+    <div class="chart-box"><h3>📊 每公里成本趋势</h3><canvas id="costChart"></canvas></div>
+  </div>
+
+  <!-- 录入 -->
+  <div class="form-card">
+    <h3>📝 新增加油记录</h3>
+    <div class="form-row">
+      <div class="form-group"><label>📅 加油日期</label><input type="date" id="fDate"></div>
+      <div class="form-group"><label>💰 金额 (元)</label><input type="number" id="fAmount" placeholder="例如 300" step="0.01"></div>
+      <div class="form-group"><label>⛽ 油量 (升)</label><input type="number" id="fLiter" placeholder="例如 42.5" step="0.01"></div>
+      <div class="form-group"><label>📏 里程数 (km)</label><input type="number" id="fMileage" placeholder="例如 52300"></div>
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-primary" onclick="addRecord()">➕ 添加记录</button>
+      <button class="btn btn-danger" onclick="clearAll()">🗑️ 清空数据</button>
+    </div>
+  </div>
+
+  <!-- 筛选 + 历史 -->
+  <div class="filter-bar" id="filterBar"></div>
+  <div class="history-card">
+    <h3>📋 加油历史</h3>
+    <div class="history-list" id="historyList"></div>
+  </div>
+</div>
+
+<script>
+// ===== 数据存储 =====
+let records=JSON.parse(localStorage.getItem('fuelData')||'[]');
+let filter='all';
+
+// 保存
+function save(){localStorage.setItem('fuelData',JSON.stringify(records));}
+
+// 获取日期字符串
+function fmtDate(d){return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate())}
+function pad(n){return n<10?'0'+n:''+n}
+
+// ===== 录入 =====
+function getNowStr(){
+  const d=new Date();
+  return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());
+}
+
+document.getElementById('fDate').value=getNowStr();
+
+function addRecord(){
+  const date=document.getElementById('fDate').value;
+  const amount=parseFloat(document.getElementById('fAmount').value);
+  const liter=parseFloat(document.getElementById('fLiter').value);
+  const mileage=parseFloat(document.getElementById('fMileage').value);
+  if(!date||isNaN(amount)||isNaN(liter)||isNaN(mileage)){
+    alert('请完整填写所有字段');return;
+  }
+  records.push({id:Date.now(),date,amount,liter,mileage});
+  records.sort((a,b)=>a.date.localeCompare(b.date));
+  save();refresh();
+  document.getElementById('fAmount').value='';
+  document.getElementById('fLiter').value='';
+  document.getElementById('fMileage').value='';
+  document.getElementById('fDate').value=getNowStr();
+}
+
+function deleteRecord(id){
+  if(!confirm('确定删除这条记录？'))return;
+  records=records.filter(r=>r.id!==id);
+  save();refresh();
+}
+
+function editRecord(id){
+  const r=records.find(x=>x.id===id);
+  if(!r||document.getElementById('h_'+id).classList.contains('editing'))return;
+  const row=document.getElementById('h_'+id);
+  row.classList.add('editing');
+  // 替换为输入框
+  const ha=document.getElementById('ha_'+id);
+  const hl=document.getElementById('hl_'+id);
+  const hm=document.getElementById('hm_'+id);
+  const oldA=r.amount.toFixed(0),oldL=r.liter.toFixed(1),oldM=r.mileage.toFixed(0);
+  ha.innerHTML=`<input class="h-edit-input" type="number" step="0.01" value="${oldA}" id="ea_${id}" onfocus="this.select()">`;
+  hl.innerHTML=`<input class="h-edit-input" type="number" step="0.01" value="${oldL}" id="el_${id}" onfocus="this.select()">`;
+  hm.innerHTML=`<input class="h-edit-input" type="number" value="${oldM}" id="em_${id}" onfocus="this.select()">`;
+  // 添加保存/取消按钮
+  const act=row.querySelector('span:last-child');
+  act.innerHTML=`<span class="h-edit" style="color:#10b981" onclick="saveEdit(${id})">✓</span><span class="h-del" onclick="cancelEdit(${id})">✕</span>`;
+  // Enter键保存
+  ['ea_'+id,'el_'+id,'em_'+id].forEach(fid=>{
+    document.getElementById(fid).addEventListener('keydown',function(e){if(e.key==='Enter')saveEdit(id);if(e.key==='Escape')cancelEdit(id);});
+  });
+}
+
+function saveEdit(id){
+  const r=records.find(x=>x.id===id);
+  if(!r)return;
+  const a=parseFloat(document.getElementById('ea_'+id).value);
+  const l=parseFloat(document.getElementById('el_'+id).value);
+  const m=parseFloat(document.getElementById('em_'+id).value);
+  if(isNaN(a)||isNaN(l)||isNaN(m)){alert('请输入有效数值');return;}
+  r.amount=a;r.liter=l;r.mileage=m;
+  records.sort((a,b)=>a.date.localeCompare(b.date));
+  save();refresh();
+}
+
+function cancelEdit(id){
+  refresh();
+}
+
+function clearAll(){
+  if(!confirm('确定清空所有加油数据？此操作不可恢复！'))return;
+  if(!confirm('再次确认：真的要清空吗？'))return;
+  records=[];save();refresh();
+}
+
+// ===== 筛选 =====
+function setFilter(f){
+  filter=f;
+  document.querySelectorAll('.filter-btn').forEach(b=>b.classList.toggle('active',b.dataset.filter===f));
+  refresh();
+}
+
+function getFilteredRecords(){
+  if(filter==='all')return records;
+  const now=new Date();
+  let start;
+  if(filter==='week'){start=new Date(now);start.setDate(start.getDate()-start.getDay());start.setHours(0,0,0,0);}
+  else if(filter==='month'){start=new Date(now.getFullYear(),now.getMonth(),1);}
+  else if(filter==='half'){start=new Date(now);start.setMonth(start.getMonth()-6);start.setDate(1);start.setHours(0,0,0,0);}
+  else if(filter==='year'){start=new Date(now.getFullYear(),0,1);}
+  else return records;
+  return records.filter(r=>new Date(r.date)>=start);
+}
+
+// ===== 统计 =====
+function calcStats(list){
+  if(list.length<2){
+    if(list.length===1){
+      return {
+        totalKm:'--',totalLiter:Math.round(list[0].liter*10)/10,
+        totalAmount:Math.round(list[0].amount*100)/100,
+        avgPer100Km:'--',costPerKm:'--',avgPrice:'--',
+        records:1,note:'再添一次记录即可计算油耗'
+      };
+    }
+    return null;
+  }
+  // 按里程排序确保计算正确
+  const sorted=[...list].sort((a,b)=>a.mileage-b.mileage);
+  const first=sorted[0],last=sorted[sorted.length-1];
+  const totalKm=last.mileage-first.mileage;
+  if(totalKm<=0)return null;
+  const totalLiter=list.reduce((s,r)=>s+r.liter,0);
+  const totalAmount=list.reduce((s,r)=>s+r.amount,0);
+  return{
+    totalKm:Math.round(totalKm),
+    totalLiter:Math.round(totalLiter*10)/10,
+    totalAmount:Math.round(totalAmount*100)/100,
+    avgPer100Km:Math.round(totalLiter/totalKm*1000)/10,
+    costPerKm:Math.round(totalAmount/totalKm*100)/100,
+    avgPrice:Math.round(totalAmount/totalLiter*100)/100,
+    records:list.length
+  };
+}
+
+function getPeriodStats(list,period){
+  // period: 'month' 返回按月的汇总
+  const groups={};
+  for(const r of list){
+    const d=new Date(r.date);
+    let key;
+    if(period==='month')key=d.getFullYear()+'-'+pad(d.getMonth()+1);
+    else if(period==='week'){const w=new Date(d);w.setDate(w.getDate()-w.getDay());key='W'+pad(Math.ceil((w-new Date(w.getFullYear(),0,1))/604800000))+'/'+w.getFullYear();}
+    else if(period==='quarter')key=d.getFullYear()+'-Q'+Math.ceil((d.getMonth()+1)/3);
+    else if(period==='half')key=d.getFullYear()+'-H'+(d.getMonth()<6?'1':'2');
+    else if(period==='year')key=''+d.getFullYear();
+    else key=fmtDate(d);
+    if(!groups[key])groups[key]=[];
+    groups[key].push(r);
+  }
+  const result=[];
+  const keys=Object.keys(groups).sort();
+  for(const k of keys){
+    const g=groups[k];
+    if(g.length<2)continue;
+    const first=g[0],last=g[g.length-1];
+    const km=last.mileage-first.mileage;
+    if(km<=0)continue;
+    const lit=g.reduce((s,r)=>s+r.liter,0);
+    const amt=g.reduce((s,r)=>s+r.amount,0);
+    result.push({label:k,km,liter:Math.round(lit*10)/10,amount:Math.round(amt*100)/100,per100:Math.round(lit/km*1000)/10,costKm:Math.round(amt/km*100)/100});
+  }
+  return result;
+}
+
+// ===== 渲染 =====
+function refresh(){
+  renderStats();
+  renderCharts();
+  renderHistory();
+}
+
+function renderStats(){
+  const list=getFilteredRecords();
+  const s=calcStats(list);
+  const html=`
+    <div class="stat-card blue"><div class="label">📏 行驶里程</div><div class="value">${s?s.totalKm:'--'}<span>km</span></div><div class="trend">${list.length}次加油${s&&s.note?' · '+s.note:''}</div></div>
+    <div class="stat-card purple"><div class="label">⛽ 总油耗</div><div class="value">${s?formatNum(s.totalLiter):'--'}<span>L</span></div><div class="trend">${s&&s.avgPrice?'均价 ¥'+s.avgPrice+'/L':'--'}</div></div>
+    <div class="stat-card green"><div class="label">📊 百公里油耗</div><div class="value">${s&&s.avgPer100Km?formatNum(s.avgPer100Km):'--'}<span>L/100km</span></div><div class="trend">${s&&s.avgPer100Km?(s.avgPer100Km<8?'✅ 经济省油':s.avgPer100Km<12?'⚠️ 正常范围':'🔴 偏高'):s?'📌 需2次记录':'📌 添加记录'}</div></div>
+    <div class="stat-card orange"><div class="label">💰 每公里成本</div><div class="value">${s&&s.costPerKm?'¥'+s.costPerKm:'--'}<span>/km</span></div><div class="trend">${s?'总花费 ¥'+formatNum(s.totalAmount):'--'}</div></div>
+  `;
+  document.getElementById('statsGrid').innerHTML=html;
+}
+
+function formatNum(n){return n.toLocaleString('zh-CN')}
+
+// ===== 图表 =====
+function renderCharts(){
+  const list=getFilteredRecords();
+  const period=document.getElementById('trendPeriod').value;
+  // 更新图表标题
+  const pn={week:'周',month:'月',quarter:'季度',half:'半年',year:'年'};
+  document.querySelectorAll('.chart-box h3').forEach((el,i)=>{
+    if(i===0)el.textContent='📊 '+pn[period]+'度油耗趋势';
+    if(i===1)el.textContent='📊 '+pn[period]+'度每公里成本';
+  });
+  const months=getPeriodStats(list,period);
+  renderBar('monthChart',months,'per100','📊 百公里油耗 (L)','#667eea');
+  renderBar('costChart',months,'costKm','💰 每公里成本 (元)','#10b981');
+}
+
+function renderBar(canvasId,data,field,label,color){
+  const c=document.getElementById(canvasId);
+  const rect=c.parentElement.getBoundingClientRect();
+  c.width=rect.width-36;c.height=180;
+  const ctx=c.getContext('2d'),W=c.width,H=c.height;
+  ctx.clearRect(0,0,W,H);
+  if(data.length===0){
+    ctx.fillStyle='#ccc';ctx.font='13px Inter,sans-serif';ctx.textAlign='center';
+    ctx.fillText('数据不足，请添加更多记录',W/2,H/2);
+    return;
+  }
+  const pad={t:20,b:28,l:40,r:16};
+  const cw=(W-pad.l-pad.r)/data.length;
+  const max=Math.max(...data.map(d=>d[field]))*1.15||1;
+  const barW=Math.min(cw*.7,30);
+  
+  // 网格
+  ctx.strokeStyle='#f0f0f0';ctx.lineWidth=1;
+  for(let i=0;i<=4;i++){const y=pad.t+(H-pad.t-pad.b)*(1-i/4);ctx.beginPath();ctx.moveTo(pad.l,y);ctx.lineTo(W-pad.r,y);ctx.stroke();}
+  
+  // 柱子
+  data.forEach((d,i)=>{
+    const x=pad.l+i*cw+(cw-barW)/2;
+    const barH=(H-pad.t-pad.b)*d[field]/max;
+    const y=pad.t+(H-pad.t-pad.b)-barH;
+    const grad=ctx.createLinearGradient(x,y,x,y+barH);
+    grad.addColorStop(0,color);grad.addColorStop(1,color+'60');
+    ctx.fillStyle=grad;
+    // 兼容roundRect，降级到rect
+    try{ctx.beginPath();ctx.roundRect(x,y,barW,barH,4);ctx.fill();}catch(e){ctx.fillRect(x,y,barW,barH);}
+    
+    // 数值
+    ctx.fillStyle='#333';ctx.font='10px Inter,sans-serif';ctx.textAlign='center';
+    ctx.fillText(d[field],x+barW/2,y-5);
+    
+    // 标签
+    ctx.fillStyle='#999';ctx.font='9px Inter,sans-serif';
+    const lbl=d.label.length>7?d.label.slice(5):d.label;
+    ctx.fillText(lbl,x+barW/2,y+barH+14);
+  });
+  
+  // Y轴标签
+  ctx.fillStyle='#bbb';ctx.font='9px Inter,sans-serif';ctx.textAlign='right';
+  for(let i=0;i<=4;i++){const v=(max*i/4).toFixed(1);ctx.fillText(v,pad.l-4,pad.t+5+(H-pad.t-pad.b)*(1-i/4));}
+}
+
+// ===== 历史记录 =====
+function renderHistory(){
+  const list=getFilteredRecords();
+  const reversed=[...list].reverse();
+  const filterBar=document.getElementById('filterBar');
+  filterBar.innerHTML=['all','week','month','half','year'].map(f=>`<button class="filter-btn${filter===f?' active':''}" data-filter="${f}" onclick="setFilter('${f}')">${f==='all'?'📋 全部':f==='week'?'📅 本周':f==='month'?'📆 本月':f==='half'?'📈 近半年':'📊 今年'}</button>`).join('');
+  
+  const el=document.getElementById('historyList');
+  if(reversed.length===0){el.innerHTML=records.length===0?'<div class="h-empty">还没有加油记录，快来添加吧 ⛽</div>':'<div class="h-empty">该时段暂无记录，试试其他筛选</div>';return;}
+  let html='<div class="h-item" style="font-weight:600;color:#999;font-size:11px;text-transform:uppercase"><span>日期</span><span style="text-align:right">金额</span><span style="text-align:right">油量</span><span style="text-align:right">里程</span><span></span></div>';
+  for(const r of reversed.slice(0,100)){
+    const d=new Date(r.date);
+    html+=`<div class="h-item" id="h_${r.id}"><span class="h-date">${pad(d.getMonth()+1)}/${pad(d.getDate())}</span><span class="h-val" id="ha_${r.id}">¥${r.amount.toFixed(0)}</span><span class="h-val" id="hl_${r.id}">${r.liter.toFixed(1)}L</span><span class="h-val" id="hm_${r.id}">${r.mileage.toFixed(0)}km</span><span style="display:flex;gap:4px;justify-content:center"><span class="h-edit" onclick="editRecord(${r.id})">✎</span><span class="h-del" onclick="deleteRecord(${r.id})">✕</span></span></div>`;
+  }
+  el.innerHTML=html;
+}
+
+// ===== 初始化 =====
+refresh();
+
+// 响应式图表 resize
+window.addEventListener('resize',()=>{renderCharts()});
+</script>
+</body>
+</html>
